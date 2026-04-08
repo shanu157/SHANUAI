@@ -1,28 +1,14 @@
-name: Deploy to Server
+name: Deploy Backend to Render
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Deploy backend
-        uses: appleboy/ssh-action@v0.1.5
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cd /opt/ai-assistant
-            git pull
-            pip install -r requirements.txt
-            sudo systemctl restart ai-assistant
-      - name: Deploy dashboard
+      - uses: actions/checkout@v4
+      - name: Trigger Render Deploy
         run: |
-          cd admin-dashboard
-          npm ci
-          npm run build
-          rsync -avz --delete build/ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:/var/www/admin-dashboard/
+          curl -X POST https://api.render.com/deploy/srv-${{ secrets.https://shanuai.onrender.com }}?key=${{ secrets.rnd_gxKBGvsnKZWcsAdmLcNgreQMPykb }}
