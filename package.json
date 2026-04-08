@@ -1,0 +1,8 @@
+{
+  "build": {
+    "publish": [{
+      "provider": "github",
+      "releaseType": "release"
+    }]
+  }
+}
