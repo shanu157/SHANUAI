@@ -1,0 +1,14 @@
+name: Deploy Backend to Render
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trigger Render Deploy
+        run: |
+          curl -X POST https://api.render.com/deploy/srv-${{ secrets.https://shanuai.onrender.com }}?key=${{ secrets.rnd_gxKBGvsnKZWcsAdmLcNgreQMPykb }}
