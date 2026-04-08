@@ -1,8 +1,13 @@
 {
   "build": {
-    "publish": [{
-      "provider": "github",
-      "releaseType": "release"
-    }]
+    "publish": [
+      {
+        "provider": "github",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
   }
 }
