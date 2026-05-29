@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>SHANU AI — Jarvis</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#000;color:#fff;font-family:'Rajdhani',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+
+/* ANIMATED BG */
+.bg{position:fixed;inset:0;z-index:0;}
+.bg canvas{width:100%;height:100%;}
+
+/* HEADER */
+header{position:relative;z-index:10;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,212,255,0.2);background:rgba(0,0,0,0.8);}
+.logo{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;background:linear-gradient(90deg,#00d4ff,#7b2fff,#00d4ff);background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3s linear infinite;}
+@keyframes shimmer{0%{background-position:0%}100%{background-position:200%}}
+.status{display:flex;align-items:center;gap:6px;font-size:11px;font-family:'Orbitron',monospace;}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#00d4ff;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,212,255,0.4);}50%{opacity:0.7;box-shadow:0 0 0 8px rgba(0,212,255,0);}}
+
+/* JARVIS CIRCLE */
+.jarvis-wrap{position:relative;z-index:5;display:flex;justify-content:center;padding:20px 0 10px;flex-shrink:0;}
+.jarvis-ring{position:relative;width:160px;height:160px;}
+.ring{position:absolute;border-radius:50%;border:2px solid transparent;}
+.ring1{inset:0;border-color:rgba(0,212,255,0.8) transparent;animation:spin1 3s linear infinite;}
+.ring2{inset:10px;border-color:transparent rgba(123,47,255,0.8);animation:spin1 2s linear infinite reverse;}
+.ring3{inset:20px;border-color:rgba(0,212,255,0.4) transparent;animation:spin1 4s linear infinite;}
+@keyframes spin1{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.jarvis-core{position:absolute;inset:30px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,255,0.3),rgba(123,47,255,0.1),transparent);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;}
+.jarvis-core.listening{background:radial-gradient(circle,rgba(255,50,50,0.5),rgba(123,47,255,0.2),transparent);animation:core-pulse 0.5s ease-in-out infinite alternate;}
+@keyframes core-pulse{from{transform:scale(1);}to{transform:scale(1.1);}}
+.jarvis-icon{font-size:32px;}
+.jarvis-label{position:absolute;bottom:-24px;left:50%;transform:translateX(-50%);font-family:'Orbitron',monospace;font-size:9px;color:rgba(0,212,255,0.7);white-space:nowrap;letter-spacing:2px;}
+
+/* CHAT */
+.chat-area{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;position:relative;z-index:5;scrollbar-width:thin;scrollbar-color:rgba(0,212,255,0.3) transparent;}
+.chat-area::-webkit-scrollbar{width:3px;}
+.chat-area::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.3);}
+
+.msg{display:flex;gap:8px;animation:fadein 0.3s ease-out;}
+@keyframes fadein{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.msg.user{flex-direction:row-reverse;}
+.msg-ava{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;border:1px solid rgba(0,212,255,0.3);}
+.msg.ai .msg-ava{background:rgba(0,212,255,0.1);}
+.msg.user .msg-ava{background:rgba(123,47,255,0.2);border-color:rgba(123,47,255,0.4);}
+.bubble{max-width:78%;padding:8px 12px;border-radius:12px;font-size:14px;line-height:1.5;font-weight:500;}
+.msg.ai .bubble{background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);border-radius:4px 12px 12px 12px;color:#e0f7ff;}
+.msg.user .bubble{background:rgba(123,47,255,0.15);border:1px solid rgba(123,47,255,0.3);border-radius:12px 4px 12px 12px;color:#e8e0ff;}
+.msg-time{font-size:9px;color:rgba(255,255,255,0.3);margin-top:3px;font-family:'Orbitron',monospace;}
+
+/* TYPING */
+.typing-dots span{display:inline-block;width:6px;height:6px;background:#00d4ff;border-radius:50%;margin:0 2px;animation:bounce 1.2s infinite;}
+.typing-dots span:nth-child(2){animation-delay:0.2s;}
+.typing-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:0.4;}30%{transform:translateY(-6px);opacity:1;}}
+
+/* INPUT */
+.input-wrap{position:relative;z-index:10;padding:10px 12px;border-top:1px solid rgba(0,212,255,0.15);background:rgba(0,0,0,0.9);display:flex;gap:8px;align-items:center;}
+.input-box{flex:1;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.2);border-radius:25px;padding:10px 18px;color:#fff;font-family:'Rajdhani',sans-serif;font-size:14px;font-weight:600;outline:none;transition:all 0.2s;}
+.input-box:focus{border-color:rgba(0,212,255,0.6);background:rgba(0,212,255,0.08);}
+.input-box::placeholder{color:rgba(255,255,255,0.3);}
+.btn-mic{width:44px;height:44px;border-radius:50%;border:2px solid rgba(0,212,255,0.4);background:rgba(0,212,255,0.05);color:#00d4ff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;flex-shrink:0;}
+.btn-mic.on{border-color:#ff3232;background:rgba(255,50,50,0.15);color:#ff3232;animation:mic-pulse 1s infinite;}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,50,50,0.4);}50%{box-shadow:0 0 0 10px rgba(255,50,50,0);}}
+.btn-send{width:44px;height:44px;border-radius:50%;border:none;background:linear-gradient(135deg,#00d4ff,#7b2fff);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.2s;}
+.btn-send:active{transform:scale(0.9);}
+
+/* TOAST */
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-20px);background:linear-gradient(135deg,#00d4ff,#7b2fff);color:#fff;border-radius:20px;padding:8px 20px;font-size:12px;font-family:'Orbitron',monospace;z-index:500;opacity:0;transition:all 0.3s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* CONNECTION BAR */
+.conn-bar{position:relative;z-index:10;text-align:center;padding:4px;font-family:'Orbitron',monospace;font-size:9px;letter-spacing:1px;}
+.conn-bar.connected{background:rgba(0,212,255,0.08);color:rgba(0,212,255,0.7);}
+.conn-bar.disconnected{background:rgba(255,50,50,0.1);color:rgba(255,50,50,0.7);}
+</style>
+</head>
+<body>
+
+<canvas id="bg" style="position:fixed;inset:0;z-index:0;"></canvas>
+
+<header>
+  <div class="logo">SHANU AI</div>
+  <div class="status">
+    <div class="status-dot" id="sdot"></div>
+    <span id="stext" style="font-size:10px;">CONNECTING</span>
+  </div>
+</header>
+
+<div class="conn-bar disconnected" id="connbar">⚡ CONNECTING TO JARVIS CLOUD...</div>
+
+<div class="jarvis-wrap">
+  <div class="jarvis-ring">
+    <div class="ring ring1"></div>
+    <div class="ring ring2"></div>
+    <div class="ring ring3"></div>
+    <div class="jarvis-core" id="core" onclick="toggleMic()">
+      <div class="jarvis-icon">🤖</div>
+    </div>
+    <div class="jarvis-label">TAP TO SPEAK</div>
+  </div>
+</div>
+
+<div class="chat-area" id="chat"></div>
+
+<div class="input-wrap">
+  <button class="btn-mic" id="mic" onclick="toggleMic()">🎤</button>
+  <input class="input-box" id="inp" placeholder="Ask me anything, Shanu..." onkeydown="if(event.key==='Enter')sendMsg()">
+  <button class="btn-send" onclick="sendMsg()">➤</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SERVER = 'wss://shanuai-production.up.railway.app/ws';
+let ws = null, recog = null, isListening = false, reconnectTimer = null;
+
+// ===== ANIMATED BACKGROUND =====
+const canvas = document.getElementById('bg');
+const ctx = canvas.getContext('2d');
+let particles = [];
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+for(let i = 0; i < 60; i++) {
+  particles.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: (Math.random() - 0.5) * 0.3,
+    r: Math.random() * 1.5 + 0.5,
+    alpha: Math.random() * 0.5 + 0.1,
+    color: Math.random() > 0.5 ? '0,212,255' : '123,47,255'
+  });
+}
+
+function drawBg() {
+  ctx.fillStyle = 'rgba(0,0,0,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    if(p.x < 0) p.x = canvas.width;
+    if(p.x > canvas.width) p.x = 0;
+    if(p.y < 0) p.y = canvas.height;
+    if(p.y > canvas.height) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(${p.color},${p.alpha})`;
+    ctx.fill();
+  });
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// ===== WEBSOCKET =====
+function connect() {
+  try {
+    ws = new WebSocket(SERVER);
+    ws.onopen = () => {
+      setStatus(true);
+      addMsg('ai', '⚡ SHANU AI online. Jarvis system activated. How can I help you, Shanu? 🔥');
+      if(reconnectTimer) { clearInterval(reconnectTimer); reconnectTimer = null; }
+    };
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+      removeTyping();
+      addMsg('ai', data.result || data.response || 'Done');
+      speakText((data.result || '').replace(/[^\w\s.,!?]/g, ''));
+    };
+    ws.onclose = () => {
+      setStatus(false);
+      reconnectTimer = setTimeout(connect, 3000);
+    };
+    ws.onerror = () => setStatus(false);
+  } catch(e) { setStatus(false); }
+}
+
+function setStatus(on) {
+  const dot = document.getElementById('sdot');
+  const txt = document.getElementById('stext');
+  const bar = document.getElementById('connbar');
+  dot.style.background = on ? '#00d4ff' : '#ff3232';
+  txt.textContent = on ? 'ONLINE' : 'OFFLINE';
+  bar.className = 'conn-bar ' + (on ? 'connected' : 'disconnected');
+  bar.textContent = on ? '⚡ JARVIS CLOUD CONNECTED — GLOBAL ACCESS ACTIVE' : '⚠ RECONNECTING...';
+}
+
+// ===== CHAT =====
+function sendMsg() {
+  const inp = document.getElementById('inp');
+  const msg = inp.value.trim();
+  if(!msg) return;
+  inp.value = '';
+  addMsg('user', msg);
+  if(ws && ws.readyState === WebSocket.OPEN) {
+    showTyping();
+    ws.send(JSON.stringify({command: msg}));
+  } else {
+    addMsg('ai', '⚠ Not connected to server. Reconnecting...');
+    connect();
+  }
+}
+
+function addMsg(role, text) {
+  const chat = document.getElementById('chat');
+  const now = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+  const d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.innerHTML = `
+    <div class="msg-ava">${role==='ai'?'🤖':'👤'}</div>
+    <div>
+      <div class="bubble">${text}</div>
+      <div class="msg-time">${now}</div>
+    </div>`;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById('chat');
+  const d = document.createElement('div');
+  d.className = 'msg ai'; d.id = 'typing';
+  d.innerHTML = '<div class="msg-ava">🤖</div><div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+function removeTyping() { const el=document.getElementById('typing'); if(el)el.remove(); }
+
+// ===== VOICE INPUT =====
+function setupMic() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR) return;
+  recog = new SR();
+  recog.continuous = false;
+  recog.interimResults = false;
+  recog.lang = 'en-US';
+  recog.onresult = e => {
+    document.getElementById('inp').value = e.results[0][0].transcript;
+    stopMic(); sendMsg();
+  };
+  recog.onerror = () => stopMic();
+  recog.onend = () => stopMic();
+}
+
+function toggleMic() { isListening ? stopMic() : startMic(); }
+function startMic() {
+  if(!recog) { toast('Voice not supported'); return; }
+  isListening = true;
+  document.getElementById('mic').classList.add('on');
+  document.getElementById('mic').textContent = '🔴';
+  document.getElementById('core').classList.add('listening');
+  try { recog.start(); toast('🎤 Listening...'); } catch(e) { stopMic(); }
+}
+function stopMic() {
+  isListening = false;
+  document.getElementById('mic').classList.remove('on');
+  document.getElementById('mic').textContent = '🎤';
+  document.getElementById('core').classList.remove('listening');
+  try { if(recog) recog.stop(); } catch(e) {}
+}
+
+// ===== VOICE OUTPUT =====
+function speakText(text) {
+  if(!text || !('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text.substring(0, 300));
+  u.rate = 1.0; u.pitch = 1.0;
+  window.speechSynthesis.speak(u);
+}
+
+// ===== TOAST =====
+let tt;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(tt);
+  tt = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ===== INIT =====
+window.onload = () => { setupMic(); connect(); };
+</script>
+</body>
+</html>
