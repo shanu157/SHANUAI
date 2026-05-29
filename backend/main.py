@@ -14,28 +14,6 @@ if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not set")
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel("gemini-2.0-flash")
-# Try models in order until one works
-def get_model():
-    models_to_try = [
-        "gemini-1.5-flash",
-        "gemini-1.5-pro", 
-        "gemini-pro",
-        "gemini-1.0-pro",
-        "models/gemini-1.5-flash",
-        "models/gemini-pro"
-    ]
-    for m in models_to_try:
-        try:
-            model = genai.GenerativeModel(m)
-            model.generate_content("test")
-            print(f"✓ Using model: {m}")
-            return model
-        except Exception as e:
-            print(f"✗ {m} failed: {e}")
-            continue
-    return None
-
-model = get_model()
 
 app = FastAPI(title="SHANU AI - Jarvis Backend")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
