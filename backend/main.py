@@ -9,7 +9,9 @@ from typing import Dict, List
 import google.generativeai as genai
 
 # ===== CONFIG =====
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyA2sGRuN2H3EKdcsMCfEchMsj67TIE1MVM")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not set")
 genai.configure(api_key=GEMINI_API_KEY)
 
 # Try models in order until one works
