@@ -15,7 +15,7 @@ function App() {
   };
 
   const connectWebSocket = () => {
-    ws.current = new WebSocket('ws://YOUR_SERVER_IP:8000/ws');
+    ws.current = new WebSocket('wss://shanuai-production.up.railway.app/ws');
     ws.current.onmessage = (e) => {
       const data = JSON.parse(e.data);
       setResult(data.result);
