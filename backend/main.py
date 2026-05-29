@@ -8,7 +8,7 @@ import google.generativeai as genai
 from typing import Dict, List
 
 # ---------- Config ----------
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY","AIzaSyA2sGRuN2H3EKdcsMCfEchMsj67TIE1MVM")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY environment variable not set")
 
