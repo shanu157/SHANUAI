@@ -13,7 +13,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise ValueError("GEMINI_API_KEY not set")
 genai.configure(api_key=GEMINI_API_KEY)
-
+model = genai.GenerativeModel("gemini-2.0-flash")
 # Try models in order until one works
 def get_model():
     models_to_try = [
