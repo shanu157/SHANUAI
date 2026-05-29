@@ -1,72 +1,189 @@
 import os
 import json
 import asyncio
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+import datetime
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import google.generativeai as genai
 from typing import Dict, List
+import google.generativeai as genai
 
-# ---------- Config ----------
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY","AIzaSyA2sGRuN2H3EKdcsMCfEchMsj67TIE1MVM")
-if not GEMINI_API_KEY:
-    raise ValueError("GEMINI_API_KEY environment variable not set")
-
+# ===== CONFIG =====
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyA2sGRuN2H3EKdcsMCfEchMsj67TIE1MVM")
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
 
-app = FastAPI(title="AI Voice Assistant Backend")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Restrict in production
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Try models in order until one works
+def get_model():
+    models_to_try = [
+        "gemini-1.5-flash",
+        "gemini-1.5-pro", 
+        "gemini-pro",
+        "gemini-1.0-pro",
+        "models/gemini-1.5-flash",
+        "models/gemini-pro"
+    ]
+    for m in models_to_try:
+        try:
+            model = genai.GenerativeModel(m)
+            model.generate_content("test")
+            print(f"✓ Using model: {m}")
+            return model
+        except Exception as e:
+            print(f"✗ {m} failed: {e}")
+            continue
+    return None
 
-# ---------- Admin Command Store (in-memory for demo, use Supabase later) ----------
-admin_commands: Dict[str, str] = {
-    "greet": "print('Hello from admin')",
-    "open google": "webbrowser.open('https://google.com')",
-    "tell time": "print(datetime.datetime.now())"
+model = get_model()
+
+app = FastAPI(title="SHANU AI - Jarvis Backend")
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+# ===== MEMORY STORE =====
+memory_store: List[dict] = []
+schedules: List[dict] = []
+user_profile = {
+    "name": "Shanu",
+    "dream": "Professional Footballer",
+    "favourite_player": "Cristiano Ronaldo"
 }
 
-# ---------- WebSocket Manager ----------
+# ===== JARVIS SYSTEM PROMPT =====
+JARVIS_PROMPT = """You are SHANU AI, a Jarvis-like personal AI assistant for Shanu.
+You are intelligent, helpful, and speak like Jarvis from Iron Man — professional but friendly.
+You know:
+- Shanu loves football and wants to be a professional footballer
+- Shanu's favourite player is Cristiano Ronaldo (CR7)
+- Shanu is learning Python and building AI systems
+- You are running on a cloud server, accessible from any device worldwide
+
+You can help with:
+- General questions and conversation
+- Weather (tell user to ask "weather in [city]")
+- Time and date
+- Motivational quotes
+- Football news and facts
+- Programming help
+- Scheduling reminders
+- Device commands (open apps, make calls - tell user these work via the app)
+
+Keep responses concise and smart. Use emojis occasionally.
+When user says "schedule" or "remind", acknowledge and confirm the schedule.
+When user asks for time, give current time.
+Always address the user as "Shanu" occasionally.
+"""
+
+# ===== WEBSOCKET MANAGER =====
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
-
-    async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
-
-    async def broadcast(self, message: str):
-        for connection in self.active_connections:
-            await connection.send_text(message)
+        self.active: List[WebSocket] = []
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.active.append(ws)
+        print(f"Client connected. Total: {len(self.active)}")
+    def disconnect(self, ws: WebSocket):
+        if ws in self.active:
+            self.active.remove(ws)
+    async def broadcast(self, msg: str):
+        for ws in self.active:
+            try:
+                await ws.send_text(msg)
+            except:
+                pass
 
 manager = ConnectionManager()
 
-# ---------- Command Processor ----------
-def process_command(command: str) -> str:
-    # 1. Check admin commands
-    if command in admin_commands:
+# ===== COMMAND PROCESSOR =====
+async def process_command(command: str) -> str:
+    command_lower = command.lower().strip()
+
+    # TIME
+    if any(w in command_lower for w in ["time", "what time", "current time"]):
+        now = datetime.datetime.now().strftime("%I:%M %p")
+        date = datetime.datetime.now().strftime("%A, %B %d %Y")
+        return f"⏰ Current time: {now}\n📅 Date: {date}"
+
+    # SCHEDULE
+    if any(w in command_lower for w in ["remind", "schedule", "set alarm", "set reminder"]):
+        schedules.append({
+            "task": command,
+            "time": datetime.datetime.now().isoformat(),
+            "status": "pending"
+        })
+        if model:
+            try:
+                r = model.generate_content(JARVIS_PROMPT + f"\nUser said: {command}\nRespond confirming you've noted this schedule/reminder.")
+                return r.text
+            except:
+                pass
+        return f"✅ Noted! I've scheduled: '{command}'"
+
+    # MEMORY
+    if command_lower.startswith("remember "):
+        fact = command[9:]
+        memory_store.append({"fact": fact, "time": datetime.datetime.now().isoformat()})
+        return f"🧠 Memory saved: {fact}"
+
+    if any(w in command_lower for w in ["what do you remember", "my memory", "show memory"]):
+        if not memory_store:
+            return "🧠 No memories saved yet. Say 'remember [something]' to save!"
+        items = memory_store[-5:]
+        return "🧠 I remember:\n" + "\n".join([f"• {m['fact']}" for m in items])
+
+    # FOOTBALL
+    if any(w in command_lower for w in ["football", "cr7", "ronaldo", "messi", "mbappe", "goal"]):
+        if model:
+            try:
+                r = model.generate_content(JARVIS_PROMPT + f"\nUser asked about football: {command}\nGive an exciting football-related response!")
+                return r.text
+            except:
+                pass
+        return "⚽ Football is life! CR7 is the GOAT with 900+ goals! Keep training Shanu! 🔥"
+
+    # MOTIVATION
+    if any(w in command_lower for w in ["motivat", "inspire", "quote"]):
+        quotes = [
+            "💪 'Your talent is God's gift to you. What you do with it is your gift back to God.' — Leo Buscaglia",
+            "🔥 'I am not talented, I am obsessed.' — Cristiano Ronaldo",
+            "⚽ 'The more difficult the victory, the greater the happiness in winning.' — Pelé",
+            "🌟 'Hard work beats talent when talent doesn't work hard.' — Tim Notke",
+            "💎 'Dream big. Work hard. Stay focused.' — Keep going Shanu!"
+        ]
+        import random
+        return random.choice(quotes)
+
+    # GEMINI AI (fallback for everything else)
+    if model:
         try:
-            # WARNING: exec is unsafe; use with caution. Better to map to safe functions.
-            exec(admin_commands[command])
-            return f"Executed admin command: {command}"
+            full_prompt = JARVIS_PROMPT + f"\n\nUser: {command}\nJarvis:"
+            response = model.generate_content(full_prompt)
+            return response.text
         except Exception as e:
-            return f"Error executing admin command: {str(e)}"
+            return f"⚠️ AI temporarily unavailable: {str(e)[:100]}"
+    else:
+        return "⚠️ AI model not loaded. Check API key and model availability."
 
-    # 2. Use Gemini AI
-    try:
-        response = model.generate_content(command)
-        return response.text
-    except Exception as e:
-        return f"AI error: {str(e)}"
+# ===== ROUTES =====
+@app.get("/")
+async def root():
+    return {
+        "status": "alive",
+        "model": str(model._model_name if model else "none"),
+        "memories": len(memory_store),
+        "schedules": len(schedules)
+    }
 
-# ---------- WebSocket Endpoint ----------
+@app.get("/health")
+async def health():
+    return {"status": "ok", "time": datetime.datetime.now().isoformat()}
+
+@app.get("/memory")
+async def get_memory():
+    return {"memory": memory_store}
+
+@app.get("/schedules")
+async def get_schedules():
+    return {"schedules": schedules}
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -78,35 +195,17 @@ async def websocket_endpoint(websocket: WebSocket):
                 command = cmd_json.get("command", "")
             except:
                 command = data
-            result = process_command(command)
-            await websocket.send_text(json.dumps({"result": result}))
+            if command:
+                result = await process_command(command)
+                await websocket.send_text(json.dumps({"result": result, "status": "ok"}))
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-# ---------- REST Admin API ----------
-class CommandUpdate(BaseModel):
-    code: str
+# REST API for mobile apps
+class CommandRequest(BaseModel):
+    command: str
 
-@app.get("/admin/commands")
-def get_commands():
-    return admin_commands
-
-@app.post("/admin/commands/{name}")
-def update_command(name: str, update: CommandUpdate):
-    admin_commands[name] = update.code
-    return {"status": "updated", "command": name}
-
-@app.delete("/admin/commands/{name}")
-def delete_command(name: str):
-    if name in admin_commands:
-        del admin_commands[name]
-    return {"status": "deleted"}
-
-# ---------- Health Check ----------
-@app.get("/")
-def health():
-    return {"status": "alive"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+@app.post("/command")
+async def rest_command(req: CommandRequest):
+    result = await process_command(req.command)
+    return {"result": result, "status": "ok"}
